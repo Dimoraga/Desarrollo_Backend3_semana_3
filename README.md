@@ -106,6 +106,8 @@ sumativauno/
 - Credenciales del usuario MySQL configuradas en [`application-local.properties`](src/main/resources/application-local.properties) (por defecto usuario `root`; ajusta `spring.datasource.password` a la de tu instalación).
 - No es necesario crear la base de datos a mano: la URL de conexión incluye `createDatabaseIfNotExist=true`.
 
+> ⚠️ **Importante si vas a ejecutar este proyecto en un equipo distinto al original** (por ejemplo, al revisar el .rar o el repositorio de GitHub): las credenciales en `application-local.properties` corresponden al MySQL local del autor. **Antes de ejecutar**, abre ese archivo y ajusta `spring.datasource.username` y `spring.datasource.password` con las credenciales de tu propia instancia de MySQL. Si no lo haces, la aplicación fallará al arrancar (ver sección de solución de problemas más abajo).
+
 ### Levantar la aplicación
 Desde la raíz del proyecto, usando el Maven Wrapper (no requiere tener Maven instalado):
 
@@ -121,6 +123,8 @@ Alternativamente, para generar y ejecutar el jar:
 java -jar target/sumativauno-0.0.1-SNAPSHOT.jar
 ```
 
+También puedes ejecutar directamente la clase `SumativaunoApplication` desde el IDE (tiene el método `main`).
+
 ### Qué debería ocurrir
 1. Al arrancar, Spring Boot activa el perfil `local` y se conecta a MySQL, creando la base de datos `springbatch_db` si no existe.
 2. Se ejecuta `schema-batch-mysql.sql` para crear las tablas de metadatos de Spring Batch (es seguro reejecutarlo, usa `IF NOT EXISTS`), y Hibernate crea/actualiza las tablas de negocio (`ddl-auto=update`).
@@ -132,3 +136,14 @@ java -jar target/sumativauno-0.0.1-SNAPSHOT.jar
    junto con las líneas de `LoggingSkipListener`/`LoggingRetryListener` cada vez que se omite un registro inválido o se reintenta una escritura.
 4. Cada job lee su CSV correspondiente desde `src/main/resources`, procesa/valida los registros y persiste resultados en MySQL: `resumen_transacciones_diarias`, `cuentas_intereses` y `movimientos_cuenta_anual` / `estados_cuenta_anual`.
 5. Al terminar los tres jobs, la aplicación **se cierra sola** (no queda un servidor esperando peticiones): el proceso termina con código de salida `0` si los tres jobs finalizaron en estado `COMPLETED`, o `1` si alguno falló.
+
+### Solución de problemas al ejecutar en otro equipo
+Como la conexión a MySQL está fija en `application-local.properties`, quien clone/descomprima el proyecto en otra máquina puede encontrarse con estos errores:
+
+| Error en consola | Causa | Solución |
+|---|---|---|
+| `Communications link failure` / `Connection refused` | MySQL no está instalado o el servicio no está corriendo | Instalar MySQL y asegurarse de que el servicio esté activo en el puerto `3306` |
+| `Access denied for user 'root'@'localhost'` | El usuario/contraseña de `application-local.properties` no coincide con el de tu MySQL | Editar `spring.datasource.username` y `spring.datasource.password` en `application-local.properties` con tus propias credenciales |
+| `Unknown database 'springbatch_db'` | Muy poco probable (la URL incluye `createDatabaseIfNotExist=true`), pero si ocurre | Crear manualmente la base con `CREATE DATABASE springbatch_db;` |
+
+En cualquiera de estos casos, el programa no llega a ejecutar los jobs — la falla ocurre al conectar, antes de `BatchJobsRunner`. Una vez ajustadas las credenciales correctas, basta con volver a ejecutar (`mvnw spring-boot:run` o el jar) y el flujo completo (creación de tablas + los tres jobs) corre normalmente.
