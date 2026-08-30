@@ -6,11 +6,11 @@
 - Maven
 - MySQL 
 
-# Arquitectura del Job
+# 💻 Arquitectura del Job
 El flujo implementado sigue el patrón clásico de Spring Batch:
-(1) ItemReader :    Lectura de datos desde los archivos CSV
-(2) ItemProcessor : Transformación y validación de todos los registros. En la actividad se nos entregaron tres archivos: cuentas_anuales.csv, intereses.csv y transacciones.csv
-(3) ItemWriter :    Inserta los datos procesados previamente en la base de datos respectiva.
+1. ItemReader :    Lectura de datos desde los archivos CSV
+2. ItemProcessor : Transformación y validación de todos los registros. En la actividad se nos entregaron tres archivos: cuentas_anuales.csv, intereses.csv y transacciones.csv
+3. ItemWriter :    Inserta los datos procesados previamente en la base de datos respectiva.
 
 Se implementaron tres jobs, cada uno con la secuencia limpiar -> procesar -> resumen/compilar:
 
@@ -20,16 +20,16 @@ Se implementaron tres jobs, cada uno con la secuencia limpiar -> procesar -> res
 
 Los tres jobs corren en secuencia al levantar la aplicación (`BatchJobsRunner`), y el proceso finaliza solo (exit code 0 si los tres terminan `COMPLETED`, 1 en caso contrario).
 
-## Manejo de errores y tolerancia a fallos
+## ⚠️ Manejo de errores y tolerancia a fallos
 - Cada `ItemProcessor` corrige lo que se puede (fechas en varios formatos, montos/saldos ausentes) y marca como `anomalia=true` lo que no se puede corregir, en vez de descartar el registro silenciosamente.
 - `RegistroInvalidoSkipPolicy` (skip policy propia): omite líneas de CSV mal formadas hasta un límite (50), sin afectar a otras excepciones.
 - `EscrituraTransitoriaRetryPolicy` (retry policy propia, `org.springframework.core.retry.RetryPolicy`): reintenta hasta 3 veces solo fallos transitorios de acceso a datos (timeouts, deadlocks) con backoff fijo de 500ms.
 - `LoggingSkipListener` / `LoggingRetryListener`: dejan constancia en el log de cada omisión o reintento, para que sean auditables.
 
-## Escalamiento
+## 🏋️‍♂️ Escalamiento
 Se optó por **steps multi-thread** (pool `ThreadPoolTaskExecutor`: 4 hilos core, 8 máximo, cola de 100) en lugar de particionamiento: cada CSV es un único archivo de ~1000 filas, por lo que particionar agregaría complejidad (repartir el archivo, agregar resultados por partición) sin ganancia real de throughput. El lector se envuelve en `SynchronizedItemStreamReader` para que sea seguro de usar entre hilos.
 
-## Estructura del Proyecto
+## 📂 Estructura del Proyecto
 
 ```
 sumativauno/
